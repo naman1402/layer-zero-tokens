@@ -19,6 +19,7 @@
     "hardhat": "^2.22.10"
   },
   "dependencies": {
+    "@layerzerolabs/lz-evm-sdk-v1": "^2.3.40",
     "@layerzerolabs/lz-evm-sdk-v1-0.7": "^1.5.16",
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
