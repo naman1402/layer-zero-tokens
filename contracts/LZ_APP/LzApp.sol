@@ -27,9 +27,13 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
     using BytesLib for bytes;
 
     ILayerZeroEndpoint public immutable lzEndpoint;
+    // represent system or contract that pre-validates transactions before they are sent to LayerZero
     address public precrime;
+    // chainId to trusted remote contract address
     mapping(uint16 => bytes) public trustedRemoteLookup;
+    // stores min gas for different types of transactions on destination chains, chain -> message type -> gas
     mapping(uint16 => mapping(uint16 => uint256)) public minDstGasLookup;
+    // stores payload size for each limitation chain
     mapping(uint16 => uint) public payloadSizeLimitLookup;
 
     uint256 public constant DEFAULT_PAYLOAD_SIZE_LIMIT = 10000;
@@ -41,6 +45,11 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
     
     // @dev this function originally from ILayerZeroReceiver.sol, 
     // this function is called by the LayerZero protocol when a message is sent from one chain to another and needs to be processed by the destination chain
+    // handles incoming messages from other chains
+    // @param id of source chain, address of contract on source chain, nonce (to verify the correct order of messages), data being sent
+    // lzEndpoint must call this function
+    // message must be from trusted remote source (verify using internal mapping and params [_srcAddress])
+
     function lzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) public virtual override {
 
         require(msg.sender == address(lzEndpoint), "LzApp: INVALID_SENDER");
@@ -50,8 +59,12 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         _blockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
     }
 
+    // @notice this function is called by lzReceive() to handle the incoming message
+    // Must be implemented by child contracts
     function _blockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual;
 
+    // ensures that destination chain is trusted and payload size is within limit
+    // Calling Endpoin.send() to send messages to dst   chains
     function _lzSend(uint16 _dstChainId, bytes memory _payload, address payable _refundAddress, address _zroPaymentAddress, bytes memory _adapterParams, uint _nativeFee) internal virtual {
 
         bytes memory trustedRemote = trustedRemoteLookup[_dstChainId];
@@ -60,6 +73,9 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         lzEndpoint.send{value: _nativeFee}(_dstChainId, trustedRemote, _payload, _refundAddress, _zroPaymentAddress, _adapterParams);
     }
 
+    // @notice ensures that payload size is within the limit for the destination chain
+    // if no limit is set, it uses a default payload size limit
+    // if payload size exceeds the limit, it reverts with an error message
     function _checkPayloadSize(uint16 _dstChainId, uint256 _payloadSize) internal view virtual {
 
         uint payloadSizeLimit = payloadSizeLimitLookup[_dstChainId];
@@ -69,6 +85,9 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         require(_payloadSize <= payloadSizeLimit, "LzApp: PAYLOAD_SIZE_EXCEEDED");
     }
 
+    // @notice checks if the provided gas limit is sufficient for the transaction
+    // minDstGasLookup[_dstChainId][_type] retrieves the minimum gas limit for the given destination chain and message type
+    // ensures that the provided gas limit is greater than or equal to the minimum gas limit plus any additional gas required for the transaction
     function _checkGasLimit(uint16 _dstChainId, uint16 _type, bytes memory _adapterParams, uint _extraGas) internal view virtual {
         uint256 providedGasLimit = _getGasLimit(_adapterParams);
         uint256 minGasLimit = minDstGasLookup[_dstChainId][_type];
@@ -76,6 +95,8 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         require(providedGasLimit >= minGasLimit + _extraGas, "LzApp: INSUFFICIENT_GAS");
     }
 
+    // @notice extracts the gas limit from the adapter params
+    // uses low-level assembly to extract the gas limit from the first 34 bytes of the adapter params
     function _getGasLimit(bytes memory _adapterParams) internal pure virtual returns (uint gasLimit) {
         require(_adapterParams.length >= 34, "LzApp: INVALID_ADAPTER_PARAMS_LENGTH");
         assembly {
