@@ -34,7 +34,7 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
     // stores min gas for different types of transactions on destination chains, chain -> message type -> gas
     mapping(uint16 => mapping(uint16 => uint256)) public minDstGasLookup;
     // stores payload size for each limitation chain
-    mapping(uint16 => uint) public payloadSizeLimitLookup;
+    mapping(uint16 => uint256) public payloadSizeLimitLookup;
 
     uint256 public constant DEFAULT_PAYLOAD_SIZE_LIMIT = 10000;
 
@@ -54,7 +54,7 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
 
         require(msg.sender == address(lzEndpoint), "LzApp: INVALID_SENDER");
         bytes memory trustedRemote = trustedRemoteLookup[_srcChainId];
-        require(_srcAddress.length == trustedRemote.length && keccak256(_srcAddress) == keccak256(trustedRemote), "LzApp: INVALID_TUPLE");
+        require(_srcAddress.length == trustedRemote.length && keccak256(_srcAddress) == keccak256(trustedRemote), "LzApp: srcAddress is not trusted");
 
         _blockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
     }
@@ -64,7 +64,7 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
     function _blockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual;
 
     // ensures that destination chain is trusted and payload size is within limit
-    // Calling Endpoin.send() to send messages to dst   chains
+    // Calling Endpoint.send() to send messages to dst chains
     function _lzSend(uint16 _dstChainId, bytes memory _payload, address payable _refundAddress, address _zroPaymentAddress, bytes memory _adapterParams, uint _nativeFee) internal virtual {
 
         bytes memory trustedRemote = trustedRemoteLookup[_dstChainId];
