@@ -13,6 +13,8 @@ abstract contract LZERC20Core is NonBlockingLzApp, ERC165, ILZERC20Core {
     
     uint256 public constant NO_EXTRA_GAS = 0;
     uint16 public constant PT_SEND = 0;
+    bool public useCustomAdapterParams;
+
     constructor(address _endpoint) NonBlockingLzApp(_endpoint) {}
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
@@ -43,9 +45,27 @@ abstract contract LZERC20Core is NonBlockingLzApp, ERC165, ILZERC20Core {
 
     function _send(address _from, uint16 _dstChainId, bytes calldata _toAddress, uint256 _amount, address payable _refundAddress, address _zroPaymentAddress, bytes calldata _adapterParams) internal virtual{}
 
-    function _sendAck(uint16 _srcChainId, bytes memory, uint64, bytes memory _payload) internal virtual {}
+    function _sendAck(uint16 _srcChainId, bytes memory, uint64, bytes memory _payload) internal virtual {
+        (, bytes memory toAddressBytes, uint amount) = abi.decode(_payload, (uint16, bytes, uint256));
+        address to = toAddressBytes.toAddress(0);
+        amount = _creditTo(_srcChainId, to, amount);
+        emit ReceiveFromChain(_srcChainId, to, amount);
+    }
+
+    function _checkAdapterParams(uint16 _dstChaindId, uint16 _pkType, bytes memory _adapterParams, uint256 _extraGas) internal virtual {
+        if(useCustomAdapterParams){
+            _checkGasLimit(_dstChaindId, _pkType, _adapterParams, _extraGas);
+        } else {
+            require(_adapterParams.length == 0, "LZERC20Core: _adapterParams must be empty");
+        }
+    }
+
+    function setUseCustomAdapterParams(bool _useCustomAdapterParams) public virtual onlyOwner {
+        useCustomAdapterParams = _useCustomAdapterParams;
+        emit SetUseCustomAdapterParams(_useCustomAdapterParams);
+    }
 
     function _debitFrom(address _from, uint16 _dstChainId, bytes calldata _toAddress, uint256 _amount) internal virtual returns (uint256);
 
-    function _creditTo(uint16 _srcChainId, bytes calldata _toAddress, uint256 _amount) internal virtual returns (uint256);
+    function _creditTo(uint16 _srcChainId, address _toAddress, uint256 _amount) internal virtual returns (uint256);
 }
