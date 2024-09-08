@@ -8,17 +8,17 @@ import "./interfaces/ILZERC20.sol";
 // @notice this contract inherits from LZERC20Core, ERC20, and implements the ILZERC20 interface
 // @dev this contract is used to transfer ERC20 tokens between different chains using LayerZero
 // this contract combines LayerZero cross chain messaging protocol with standard ERC20 token functionality to create token that can be transferred across chains
-contract LZERC20 is LZERC20Core, ERC20, ILZERC20 {
-    
+contract LZERC20 is LZERC20Core, ERC20 {
+
     constructor(
         string memory _name,
         string memory _symbol,
         address _lzEndpoint
-    ) ERC20(_name, _symbol) LZERC20Core(_lzEndpoint) {}
+    ) ERC20(_name, _symbol) LZERC20Core(_lzEndpoint) Ownable(msg.sender){}
 
-    function supportsInterface(bytes4 interfaceId) public view override(LZERC20Core, IERC165) returns (bool) {
-        return interfaceId == type(ILZERC20).interfaceId || super.supportsInterface(interfaceId) || interfaceId == type(IERC20).interfaceId;
-    }
+    // function supportsInterface(bytes4 interfaceId) public view override(LZERC20Core, IERC165) returns (bool) {
+    //     return interfaceId == type(ILZERC20).interfaceId || super.supportsInterface(interfaceId) || interfaceId == type(IERC20).interfaceId;
+    // }
 
     // this function returns the address of the token
     function token() public view virtual override returns (address) {
