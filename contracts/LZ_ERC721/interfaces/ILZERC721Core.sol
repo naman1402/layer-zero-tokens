@@ -15,7 +15,6 @@ interface ILZERC721Core is IERC165 {
 
 
     function clearCredits(bytes memory _payload) external;
-    function sendToChain(uint16 _dstChainId, address _toAddress, uint256[] memory _tokenIds) external;
 
     function sendFrom(address _from, uint16 _dstChainId, bytes calldata _toAddress, uint256 _tokenId, address payable _refundAddress, address _zroPaymentAddress, bytes calldata _adapterParams) external payable;
     function sendBatchFrom(address _from, uint16 _dstChainId, bytes calldata _toAddress, uint256[] calldata _tokenIds, address payable _refundAddress, address _zroPaymentAddress, bytes calldata _adapterParams) external payable;
