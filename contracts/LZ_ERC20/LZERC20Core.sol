@@ -7,7 +7,7 @@ import "../Lib/BytesLib.sol";
 import "./interfaces/ILZERC20Core.sol";
 
 
-// @notice this contract inherits from NonBlockingLzApp, which stores hash of failed messages and retrying failed messages
+/// @notice this contract inherits from NonBlockingLzApp, which stores hash of failed messages and retrying failed messages, as well as provides virtual function for performing operatiosn when payload is received
 // this contract focuses on ensuring ERC20 tokens can be transferred between different chains in a non-blocking manner
 
 abstract contract LZERC20Core is NonBlockingLzApp, ERC165, ILZERC20Core {
@@ -34,23 +34,23 @@ abstract contract LZERC20Core is NonBlockingLzApp, ERC165, ILZERC20Core {
     }
 
     // function that facilitates the sending of tokens to a specified destination chain
-    // @param _from address of the sender
-    // @param _dstChainId ID of the destination chain
-    // @param _toAddress address of the recipient on the destination chain
-    // @param _amount amount of tokens to send
-    // @param _refundAddress address to receive refunds for any unused gas
-    // @param _zroPaymentAddress address to receive ZRO payments for LayerZero fees
-    // @param _adapterParams additional parameters for gas or fee handling
+    /// @param _from address of the sender
+    /// @param _dstChainId ID of the destination chain
+    /// @param _toAddress address of the recipient on the destination chain
+    /// @param _amount amount of tokens to send
+    /// @param _refundAddress address to receive refunds for any unused gas
+    /// @param _zroPaymentAddress address to receive ZRO payments for LayerZero fees
+    /// @param _adapterParams additional parameters for gas or fee handling
     // this function calls the _send function to perform the actual send operation, which is implemented by the child contract
     function sendFrom(address _from, uint16 _dstChainId, bytes calldata _toAddress, uint256 _amount, address payable _refundAddress, address _zroPaymentAddress, bytes calldata _adapterParams) public payable virtual override {
         _send(_from, _dstChainId, _toAddress, _amount, _refundAddress, _zroPaymentAddress, _adapterParams);
     }
 
-    // @notice inherited from NonBlockingLzApp, this function is called when a message is received
-    // @param _srcChainId ID of the source chain
-    // @param _srcAddress address of the sender on the source chain
-    // @param _nonce sequence number of the message
-    // @param _payload contains the data sent from the source chain
+    /// @notice inherited from NonBlockingLzApp, this function is called when a message is received
+    /// @param _srcChainId ID of the source chain
+    /// @param _srcAddress address of the sender on the source chain
+    /// @param _nonce sequence number of the message
+    /// @param _payload contains the data sent from the source chain
     // using assembly to decode the first 32 bytes of the payload to get the packet type
     // if packet type is PT_SEND which mean it is a token transfer, it calls the _sendAck function to process the packet or else revert for other packet type
     function _nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual override {

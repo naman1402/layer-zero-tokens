@@ -57,6 +57,7 @@ abstract contract LZERC721Core is NonBlockingLzApp, ERC165, ReentrancyGuard, ILZ
     /// @return nativeFee is the native fee for the transaction
     /// @return zroFee is the zro fee for the transaction
     /// encode the toAddress and tokenId into a bytes memory and call the estimateFees function of the lzEndpoint
+    /// main operation is done by the endpoint contract (mock)
     function estimateSendBatchFee(
         uint16 dstChainId, 
         bytes memory _toAddress, 
@@ -120,8 +121,8 @@ abstract contract LZERC721Core is NonBlockingLzApp, ERC165, ReentrancyGuard, ILZ
         return i;
     }
 
-    /// ACTION TAKEN WHEN A MESSAGE IS RECEIVED
-    /// @notice _nonblockingLzReceive is the internal function to receive a batch of NFTs
+    /// ACTION TAKEN WHEN A MESSAGE IS RECEIVED 
+    /// @notice _nonblockingLzReceive is the internal function to receive a batch of NFTs (NonBlockingLzApp virtual function)
     /// decode the payload to get the toAddress and tokenIds
     /// uses assembly to get the toAddress (address) from the bytes memory
     /// calls the _creditTill function to credit the NFTs to the receiver and return the nextIndex to indicate how many NFTs were credited
@@ -157,7 +158,7 @@ abstract contract LZERC721Core is NonBlockingLzApp, ERC165, ReentrancyGuard, ILZ
     /// checks the tokendIds length and compare it with the dstChainIdToBatchLimit[_dstChainId]
     /// iterates through the tokenIds and calls the _debitFrom function (implemented in the child contract) to debit the NFTs from the sender
     /// encodes the toAddress and tokenIds into a bytes memory and calls the _checkGasLimit function to check the gas limit
-    /// calls the _lzSend function to send the NFTs to the destination chain (lzApp contract)
+    /// @dev calls the _lzSend function to send the NFTs to the destination chain (lzApp contract)
     /// emits the SendToChain event
     function _send(
         address _from, 

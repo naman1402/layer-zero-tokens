@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "./LZERC721Core.sol";
 import "./interfaces/ILZERC721Core.sol";
 
-/// @notice ERC721A is the optimized ERC721 contract for reducing gas fees during minting particularly for batch minting multiple NFTs at once
+/// @notice ERC721A is the optimized ERC721 contract for reducing gas fees during minting particularly for batch minting multiple NFTs at one
 
 contract LZERC721A is LZERC721Core, ERC721A, ERC721A__IERC721Receiver {
 

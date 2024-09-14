@@ -7,21 +7,23 @@ import "@layerzerolabs/lz-evm-sdk-v1-0.7/contracts/interfaces/ILayerZeroReceiver
 import "@layerzerolabs/lz-evm-sdk-v1-0.7/contracts/interfaces/ILayerZeroEndpoint.sol";
 import "../Lib/BytesLib.sol";
 
+error LzApp__OnlyEndpointCanCall();
 
-// @notice ILayerZeroUserApplicationConfig is the interface used to configure various parameters that a user application interacting with laye zero can customize
+
+/// @notice ILayerZeroUserApplicationConfig is the interface used to configure various parameters that a user application interacting with laye zero can customize
 // major function: setConfig(), setSendVersion(), setReceiveVersion(), forceResumeReceive() 
 
-// @notice ILayerZeroReceiver is the interface that defines the function that a contract must implement to receive messages from other chains
+/// @notice ILayerZeroReceiver is the interface that defines the function that a contract must implement to receive messages from other chains
 // main function: lzReceive() is triggered when a message is delivered to the destination chain, it inlcudes params like _srcChainId, _srcAddress, _payload
 
-// @notice ILayerZeroEndpoint is the central component that facilitates sending and receiving messages between chains, 
+/// @notice ILayerZeroEndpoint is the central component that facilitates sending and receiving messages between chains, 
 // send() is used to transmit messages from one chain to another
 // receive() is used to handle incoming messages received from other chains, ensures message are delivered reliably and securely to the ILayerZeroReceiver contract
 
 
 /**
  * LzReceiver is an abstract contract tha represents a generic ILayerZeroReceiver implementation
- * */ 
+*/ 
 abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroReceiver {
 
     using BytesLib for bytes;
@@ -29,7 +31,7 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
     ILayerZeroEndpoint public immutable lzEndpoint;
     // represent system or contract that pre-validates transactions before they are sent to LayerZero
     address public precrime;
-    // chainId to trusted remote contract address
+    // chainId to trusted remote contract address 
     mapping(uint16 => bytes) public trustedRemoteLookup;
     // stores min gas for different types of transactions on destination chains, chain -> message type -> gas
     mapping(uint16 => mapping(uint16 => uint256)) public minDstGasLookup;
@@ -42,29 +44,42 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         lzEndpoint = ILayerZeroEndpoint(_lzEndpoint);
     }
 
+    modifier onlyEndpoint(){
+        if(msg.sender != address(lzEndpoint)) revert LzApp__OnlyEndpointCanCall();
+        _;
+    }
+
     
-    // @dev this function originally from ILayerZeroReceiver.sol, 
+    /// @dev this function originally from ILayerZeroReceiver.sol, 
     // this function is called by the LayerZero protocol when a message is sent from one chain to another and needs to be processed by the destination chain
     // handles incoming messages from other chains
-    // @param id of source chain, address of contract on source chain, nonce (to verify the correct order of messages), data being sent
+    /// @param _srcChainId: id of source chain
+    /// @param _srcAddress: byte-address of contract on source chain
+    /// @param _nonce: nonce (to verify the correct order of messages)
+    /// @param _payload: data being sent
     // lzEndpoint must call this function
     // message must be from trusted remote source (verify using internal mapping and params [_srcAddress])
+    /// @dev this function mainly verifies the authenticity of the message using the trustedRemoteLookup mapping and then calls the internal function _blockingLzReceive() to handle the message
 
-    function lzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) public virtual override {
+    function lzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) public virtual override onlyEndpoint {
 
-        require(msg.sender == address(lzEndpoint), "LzApp: INVALID_SENDER");
+        // require(msg.sender == address(lzEndpoint), "LzApp: INVALID_SENDER");
+
         bytes memory trustedRemote = trustedRemoteLookup[_srcChainId];
         require(_srcAddress.length == trustedRemote.length && keccak256(_srcAddress) == keccak256(trustedRemote), "LzApp: srcAddress is not trusted");
 
         _blockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
     }
 
-    // @notice this function is called by lzReceive() to handle the incoming message
+    /// @notice this function is called by lzReceive() to handle the incoming message
     // Must be implemented by child contracts
     function _blockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload) internal virtual;
 
-    // ensures that destination chain is trusted and payload size is within limit
+
+
     // Calling Endpoint.send() to send messages to dst chains
+    // ensures that destination chain is trusted and payload size is within limit
+    // @dev main work is done by lzEndpoint.send()
     function _lzSend(uint16 _dstChainId, bytes memory _payload, address payable _refundAddress, address _zroPaymentAddress, bytes memory _adapterParams, uint _nativeFee) internal virtual {
 
         bytes memory trustedRemote = trustedRemoteLookup[_dstChainId];
@@ -73,7 +88,7 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         lzEndpoint.send{value: _nativeFee}(_dstChainId, trustedRemote, _payload, _refundAddress, _zroPaymentAddress, _adapterParams);
     }
 
-    // @notice ensures that payload size is within the limit for the destination chain
+    /// @notice ensures that payload size is within the limit for the destination chain
     // if no limit is set, it uses a default payload size limit
     // if payload size exceeds the limit, it reverts with an error message
     function _checkPayloadSize(uint16 _dstChainId, uint256 _payloadSize) internal view virtual {
@@ -85,7 +100,7 @@ abstract contract LzApp is Ownable, ILayerZeroUserApplicationConfig, ILayerZeroR
         require(_payloadSize <= payloadSizeLimit, "LzApp: PAYLOAD_SIZE_EXCEEDED");
     }
 
-    // @notice checks if the provided gas limit is sufficient for the transaction
+    /// @notice checks if the provided gas limit is sufficient for the transaction
     // minDstGasLookup[_dstChainId][_type] retrieves the minimum gas limit for the given destination chain and message type
     // ensures that the provided gas limit is greater than or equal to the minimum gas limit plus any additional gas required for the transaction
     function _checkGasLimit(uint16 _dstChainId, uint16 _type, bytes memory _adapterParams, uint _extraGas) internal view virtual {

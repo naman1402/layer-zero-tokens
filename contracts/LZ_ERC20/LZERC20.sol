@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./LZERC20Core.sol";
 import "./interfaces/ILZERC20.sol";
 
-// @notice this contract inherits from LZERC20Core, ERC20, and implements the ILZERC20 interface
-// @dev this contract is used to transfer ERC20 tokens between different chains using LayerZero
-// this contract combines LayerZero cross chain messaging protocol with standard ERC20 token functionality to create token that can be transferred across chains
+/// @notice this contract inherits from LZERC20Core, ERC20, and implements the ILZERC20 interface
+/// @dev this contract is used to transfer ERC20 tokens between different chains using LayerZero
+/// this contract combines LayerZero cross chain messaging protocol with standard ERC20 token functionality to create token that can be transferred across chains
 contract LZERC20 is LZERC20Core, ERC20 {
 
     constructor(
