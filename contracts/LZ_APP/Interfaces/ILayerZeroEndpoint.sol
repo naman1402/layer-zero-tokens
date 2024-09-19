@@ -5,7 +5,8 @@ pragma solidity 0.8.24;
 import "./IlayerZeroUserApplicationConfig.sol";
 
 interface ILayerZeroEndpoint is ILayerZeroUserApplicationConfig {
-function send(
+
+    function send(
         uint16 _dstChainId,
         bytes calldata _destination,
         bytes calldata _payload,
