@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { AddressLike, ChainstackProvider, parseEther, parseUnits, solidityPacked } from "ethers";
+import { AddressLike, ChainstackProvider, parseEther, parseUnits, SocketBlockSubscriber, solidityPacked } from "ethers";
 import { ethers } from "hardhat";
 
 describe("LZERC20", () => {
@@ -45,7 +45,10 @@ describe("LZERC20", () => {
         const adapterParams = solidityPacked(["uint16", "uint256"], [1, 225000])
         const sendQty = parseUnits("1", 18)
 
-        beforeEach(async function () {
+        /// error in this hook 
+        beforeEach(async function () {  
+
+            // await OFTMock.performUpkeep("0x")
 
             expect(await OFTSrc.balanceOf(owner.address)).to.be.equal(globalSupply)
             expect(await OFTDst.balanceOf(owner.address)).to.be.equal("0")
@@ -111,7 +114,37 @@ describe("LZERC20", () => {
             expect(await OFTDst.balanceOf(owner.address)).to.be.equal(0)
         })
 
-        it("forceResumeReceive() - remove msg, delivers all msgs in the queue", async function () {})
-        it("forceResumeReceive() - emptied queue is actually emptied and doesn't get double counted", async function() {})
+        it("forceResumeReceive() - remove msg, delivers all msgs in the queue", async function () {
+
+            const msgInQueue = 3
+            let nativeFee = (await OFTSrc.estimateSendFees(DstChainId, owner.address, sendQty, false, adapterParams)).nativeFee
+            for (let i = 0; i < msgInQueue; i++) {
+                await OFTSrc.sendFrom(owner.address, DstChainId, solidityPacked(["address"], [owner.address]), sendQty, owner.address, ethers.ZeroAddress, adapterParams, { value: nativeFee })
+            }
+
+            expect(await lzEndpointDstMock.getLengthofQueue(SrcChainId, srcPath)).to.equal(msgInQueue)
+            expect(await OFTDst.balanceOf(owner.address)).to.be.equal(0)
+            await expect(OFTDst.forceResumeReceive(SrcChainId, srcPath)).to.emit(lzEndpointDstMock, "UaForceResumeReceive")
+            // expect(await OFTDst.balanceOf(owner.address)).to.be.equal(sendQty.mul(msgInQueue))
+            expect(await lzEndpointDstMock.getLengthofQueue(SrcChainId, srcPath)).to.equal(0)
+        })
+
+        it("forceResumeReceive() - emptied queue is actually emptied and doesn't get double counted", async function() {
+
+            const msgsInQueue = 3
+            let nativeFee = (await OFTSrc.estimateSendFee(DstChainId, owner.address, sendQty, false, adapterParams)).nativeFee
+            for (let i = 0; i < msgsInQueue; i++) {
+                await OFTSrc.sendFrom(owner.address, DstChainId, solidityPacked(["address"], [owner.address]), sendQty, owner.address, ethers.ZeroAddress, adapterParams, { value: nativeFee })
+            }
+            
+            expect(await lzEndpointDstMock.getLengthofQueue(SrcChainId, srcPath)).to.equal(msgsInQueue)
+            expect(await OFTDst.balanceOf(owner.address)).to.be.equal(0)
+            await expect(OFTDst.forceResumeReceive(SrcChainId, srcPath)).to.emit(lzEndpointDstMock, "UaForceResumeReceive")
+
+            nativeFee = (await OFTSrc.estimateSendFee(DstChainId, owner.address, sendQty, false, adapterParams)).nativeFee
+            await lzEndpointDstMock.blockNextMsg()
+            await OFTSrc.sendFrom(owner.address, DstChainId, solidityPacked(["address"], [owner.address]), sendQty, owner.address, ethers.ZeroAddress, adapterParams, { value: nativeFee })
+            await expect( OFTDst.forceResumeReceive(SrcChainId, srcPath)).to.emit(lzEndpointDstMock, "UaForceResumeReceive")
+        })
     })
 });
